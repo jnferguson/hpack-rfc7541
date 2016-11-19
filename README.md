@@ -1,5 +1,5 @@
 # hpack-encoder
-header-only c++11/STL implementation of a HTTPv2 HPACK encoder. 
+header-only c++/STL implementation of a HTTPv2 RFC7541/HPACK encoder. 
 
 ```
 HPACK::encoder_t encoder;
