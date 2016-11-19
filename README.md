@@ -1,8 +1,6 @@
 # hpack-encoder
 header-only c++11/STL implementation of a HTTPv2 HPACK encoder. 
 
-AFAIK, the only HTTPv2 component actually written by a PRISM/Patriot Act/etc target.
-
 ```
 HPACK::encoder_t encoder;
 std::vector< uint8_t > d;
