@@ -25,13 +25,19 @@ std::vector< uint8_t > d;
 	encoder.add(HPACK::header_t(":path", "/index.html"));
 	encoder.add(HPACK::header_t(":authority", "www.example.com"));
 	encoder.add(HPACK::header_t("custom-key", "custom-value"), false);
-d = encoder.data();
+
+	for (auto& byte : encoder.data())
+		std::cout << std::setw(2) << std::setfil('0') << std::hex << 0+byte;
+	std::cout << std::endl;
 ```
 
 # Decoder
 
 ```
-	std::string x("\x82\x86\x84\x41\x8b\x0b\xe2\x5c\x2e\x3c\xb8\x5e\x69\x70\x89\xef\x58\x86\xa8\xeb\x10\x64\x9c\xbf\x40\x88\x25\xa8\x49\xe9\x5b\xa9\x7d\x7f\x89\x25\xa8\x49\xe9\x5b\xb8\xe8\xb4\xbf");
+	const char x = 			
+		"\x82\x86\x84\x41\x8b\x0b\xe2\x5c\x2e\x3c\xb8\x5e\x69\x70\x89"
+		"\xef\x58\x86\xa8\xeb\x10\x64\x9c\xbf\x40\x88\x25\xa8\x49\xe9"
+		"\x5b\xa9\x7d\x7f\x89\x25\xa8\x49\xe9\x5b\xb8\xe8\xb4\xbf";
 	HPACK::decoder_t dec;
 
 	if (true == dec.decode(x)) {
