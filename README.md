@@ -21,7 +21,7 @@ std::vector< uint8_t > d;
 	encoder.add(HPACK::header_t(":method", "GET"));
 	encoder.add(HPACK::header_t(":scheme", "https"));
 	encoder.add(HPACK::header_t(":path", "/index.html"));
-	encoder.add(HPACK::header_t(":authority", "www.example.com"), false);
+	encoder.add(HPACK::header_t(":authority", "www.example.com"));
 	encoder.add(HPACK::header_t("custom-key", "custom-value"), false);
 d = encoder.data();
 ```
