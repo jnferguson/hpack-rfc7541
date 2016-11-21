@@ -34,8 +34,9 @@ d = encoder.data();
 	std::string x("\x82\x86\x84\x41\x8b\x0b\xe2\x5c\x2e\x3c\xb8\x5e\x69\x70\x89\xef\x58\x86\xa8\xeb\x10\x64\x9c\xbf\x40\x88\x25\xa8\x49\xe9\x5b\xa9\x7d\x7f\x89\x25\xa8\x49\xe9\x5b\xb8\xe8\xb4\xbf");
 	HPACK::decoder_t dec;
 
-	dec.decode(x);
-
-	for (auto& hdr : dec.headers())
-		std::cout << hdr.first << ": " << hdr.second << std::endl;
+	if (true == dec.decode(x)) {
+		for (auto& hdr : dec.headers())
+			std::cout << hdr.first << ": " << hdr.second << std::endl;
+	} else 
+		// protocol error
 ```
