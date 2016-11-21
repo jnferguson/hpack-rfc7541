@@ -664,6 +664,13 @@ namespace HPACK
 			}
 	};
 
+	/*! \Class The HPACK decoder class.
+	 *  \Brief A wrapper class that ties together the static, dynamic tables and huffman
+	 *  encoding such that one can pass in a HTTPv2 header block and retrieve a map of strings
+	 *  that container the headers sent.
+	 *
+	 * \Warning Never Indexed code paths under tested.
+	 */
 	class decoder_t
 	{
 		private:
@@ -673,6 +680,7 @@ namespace HPACK
 			huffman_tree_t							m_huffman;
 
 			typedef std::vector< uint8_t >::iterator dec_vec_itr_t;
+
 			void
 			decode_integer(dec_vec_itr_t& beg, dec_vec_itr_t& end, uint32_t& dst, uint8_t N)
 			{
@@ -727,8 +735,58 @@ namespace HPACK
 			}
 
 		public:
+			/*!
+				\fn encoder_t(uint64_t max = 4096)
+				\Brief Constructs the encoder
+
+				\param max the maximum size of the dynamic table; unbounded and allowed to exceed RFC sizes
+			*/
 			decoder_t(int64_t max = 4096) : m_dynamic(max) { }
 			virtual ~decoder_t(void) { }
+			
+			/*!
+				\fn bool decode(const std::string&)
+				\Brief Decodes the HTTPv2 Header Block contained within the parameter
+
+				\param str the HTTPv2 Header Block
+				\return True if decoding was successful, false if an error such as a protocol decoding error was encountered.
+
+				\Warning Never indexed code paths were under tested.
+			*/
+			bool
+			decode(const std::string& str)
+			{
+				return decode(std::vector< uint8_t >(str.begin(), str.end()));
+			}
+
+			/*!
+				\fn bool decode(const std::string&)
+				\Brief Decodes the HTTPv2 Header Block contained within the parameter
+
+				\param ptr the HTTPv2 Header Block
+				\return True if decoding was successful, false if an error such as a protocol decoding error was encountered.
+
+				\Warning Never indexed code paths were under tested.
+			*/
+			bool
+			decode(const char* ptr)
+			{
+				if ( nullptr == ptr )
+					throw std::invalid_argument("HPACK::decoder_t::decode(): Invalid nullptr parameter");
+
+				return decode(std::string(ptr));
+			}
+
+
+			/*!
+				\fn bool decode(const std::string&)
+				\Brief Decodes the HTTPv2 Header Block contained within the parameter
+
+				\param data the HTTPv2 Header Block
+				\return True if decoding was successful, false if an error such as a protocol decoding error was encountered.
+
+				\Warning Never indexed code paths were under tested.
+			*/
 			bool 
 			decode(std::vector< uint8_t >& data)
 			{
@@ -782,8 +840,15 @@ namespace HPACK
 				return true;
 			}
 
-			std::map< std::string, std::string >&
-			headers(void)
+
+			/*!
+				\fn const std::map< std::string, std::string >& headers(void) const
+				\Brief Retrieves the interally managed header map of decoded headers
+
+				\Return The map of the decoded headers
+			 */
+			const std::map< std::string, std::string >&
+			headers(void) const 
 			{
 				return m_headers;
 			}
