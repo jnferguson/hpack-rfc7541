@@ -1,5 +1,5 @@
 # hpack
-header-only c++/STL implementation of a HTTPv2 HPACK/RFC7541 encoder/decoder. 
+header-only c++/STL-ish implementation of a HTTPv2 HPACK/RFC7541 encoder/decoder. 
 
 # Encoder 
 
