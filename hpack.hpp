@@ -893,6 +893,7 @@ namespace HPACK
 				else {
 					std::vector< uint8_t > tmp;
 					encode_integer(tmp, huffbuff.size(), 7);
+					tmp.front() |= HUFFMAN_ENCODED;
 					m_buf.insert(m_buf.end(), tmp.begin(), tmp.end());
 				}
 				
@@ -1064,7 +1065,8 @@ namespace HPACK
 					if ( true == huffman )
 						huff_encode(h.second);
 					else {
-						m_buf.push_back(static_cast<uint8_t>( h.second.length() ));
+						buf.clear();
+						encode_integer(buf, h.second.length(), 7);
 						m_buf.insert(m_buf.end(), h.second.begin(), h.second.end());
 					}
 				} else {
@@ -1077,13 +1079,17 @@ namespace HPACK
 					if ( true == huffman && false == never_indexed )
 						huff_encode(h.first);
 					else {
-						m_buf.push_back(static_cast<uint8_t>( h.first.length() ));
+						buf.clear();
+						encode_integer(buf, h.first.length(), 7);
+						m_buf.insert(m_buf.end(), buf.begin(), buf.end());
 						m_buf.insert(m_buf.end(), h.first.begin(), h.first.end());
 					}
 					if ( true == huffman && false == never_indexed )
 						huff_encode(h.second);
 					else {
-						m_buf.push_back(static_cast< uint8_t >( h.second.length() ));
+						buf.clear();
+						encode_integer(buf, h.second.length(), 7);
+						m_buf.insert(m_buf.end(), buf.begin(), buf.end());
 						m_buf.insert(m_buf.end(), h.second.begin(), h.second.end());
 					}	
 				}
