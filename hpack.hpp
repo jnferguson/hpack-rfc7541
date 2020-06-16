@@ -434,7 +434,7 @@ namespace HPACK
 
 				// the RFC dictates that we do this here,
 				// so we do.
-				while ( length() >= m_max ) {
+				while ( length() > m_max ) {
 					m_queue.pop_back();
 				}
 
@@ -475,8 +475,7 @@ namespace HPACK
 					if ( tl > std::numeric_limits< uint64_t >::max() - size )
 						throw std::runtime_error("HPACK::ringtable_t::length() Additive integer overflow encountered");
 
-					size += tl;
-
+					size += tl; // FIXME? + 32? see 4.1 of https://tools.ietf.org/html/rfc7541#section-3.2
 				}
 
 				return size;
@@ -496,7 +495,7 @@ namespace HPACK
 					throw std::runtime_error("HPACK::ringtable_t::add(): Additive integer overflow encountered.");
 
 				// Again the RFC dictates when we resize the queue.
-				while ( length() >= m_max ) {
+				while ( length() > m_max ) {
 					m_queue.pop_back();
 				}
 
@@ -695,7 +694,7 @@ namespace HPACK
 				if ( dst == two_N ) {
 					uint64_t M = 0;
 
-					for ( ; current < end; current++ ) {
+					for ( ++current; current < end; ) {
 						dst += ( ( *current & 0x7F ) << M );
 						M += 7;
 
@@ -819,9 +818,10 @@ namespace HPACK
 						m_headers[ m_dynamic.get_header(index).first ] = m_dynamic.get_header(index).second;
 					} else {
 						uint32_t index(0);
-						std::string n("");
+						std::string n;
+						bool is_6_2_1 = 0x40 == ( *itr & 0xC0 );
 
-						if ( 0x40 == ( *itr & 0xC0 ) ) // 6.2.1 Literal Header Field with Incremental Indexing
+						if ( is_6_2_1 ) // 6.2.1 Literal Header Field with Incremental Indexing
 							decode_integer(itr, data.end(), index, 6);
 						else // 6.2.2 Literal Header Field without Indexing
 							decode_integer(itr, data.end(), index, 4);
@@ -834,6 +834,9 @@ namespace HPACK
 						}
 
 						m_headers[ n ] = parse_string(itr, data.end());
+
+						if ( is_6_2_1 )
+							m_dynamic.add(n, m_headers[ n ]);
 					}
 				}
 
