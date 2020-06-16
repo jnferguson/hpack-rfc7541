@@ -577,7 +577,7 @@ namespace HPACK
 			{
 				if ( index < predefined_headers.size() ) {
 					return predefined_headers.at(index);
-				} else if ( index > predefined_headers.size() && index < predefined_headers.size() + m_queue.size() )
+				} else if ( index >= predefined_headers.size() && index < predefined_headers.size() + m_queue.size() )
 					return m_queue.at(index - predefined_headers.size());
 
 				throw std::runtime_error("HPACK::ringtable_t::get_header(): Invalid index/header not found");
@@ -667,7 +667,7 @@ namespace HPACK
 	/*! \Class The HPACK decoder class.
 	 *  \Brief A wrapper class that ties together the static, dynamic tables and huffman
 	 *  encoding such that one can pass in a HTTPv2 header block and retrieve a map of strings
-	 *  that container the headers sent.
+	 *  that contain the headers sent.
 	 *
 	 * \Warning Never Indexed code paths under tested.
 	 */
@@ -736,8 +736,8 @@ namespace HPACK
 
 		public:
 			/*!
-				\fn encoder_t(uint64_t max = 4096)
-				\Brief Constructs the encoder
+				\fn decoder_t (uint64_t max = 4096)
+				\Brief Constructs the decoder 
 
 				\param max the maximum size of the dynamic table; unbounded and allowed to exceed RFC sizes
 			*/
@@ -795,7 +795,7 @@ namespace HPACK
 					return false;
 
 				for ( auto itr = data.begin(); itr != data.end(); /* itr++ */ ) {
-					if ( 0x20 == ( *itr * 0xE0 ) ) { // 6.3 Dynamic Table update
+					if ( 0x20 == ( *itr & 0xE0 ) ) { // 6.3 Dynamic Table update
 						uint32_t size(0);
 
 						decode_integer(itr, data.end(), size, 5);
