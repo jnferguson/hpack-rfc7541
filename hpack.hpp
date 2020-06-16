@@ -619,7 +619,7 @@ namespace HPACK
 				for ( auto& byte : src ) {
 					bits_t bits = huffman_table.at(byte);
 
-					for ( auto& bit : bits ) {
+					for ( const auto& bit : bits ) {
 						if ( true == write_bit(bit) ) {
 							ret.push_back(m_byte);
 							m_byte = 0;
@@ -682,7 +682,7 @@ namespace HPACK
 			typedef std::vector< uint8_t >::iterator dec_vec_itr_t;
 
 			void
-			decode_integer(dec_vec_itr_t& beg, dec_vec_itr_t& end, uint32_t& dst, uint8_t N)
+			decode_integer(dec_vec_itr_t& beg, dec_vec_itr_t end, uint32_t& dst, uint8_t N)
 			{
 				const uint16_t two_N = static_cast< uint16_t >( std::pow(2, N) - 1 );
 				dec_vec_itr_t&  current(beg);
@@ -709,7 +709,7 @@ namespace HPACK
 			}
 
 			std::string
-			parse_string(dec_vec_itr_t& itr, dec_vec_itr_t& end)
+			parse_string(dec_vec_itr_t& itr, dec_vec_itr_t end)
 			{
 				std::string		dst("");
 				unsigned int	len(*itr & 0x7F);
@@ -754,7 +754,7 @@ namespace HPACK
 				\Warning Never indexed code paths were under tested.
 			*/
 			bool
-			decode(const std::string& str)
+			decode(const std::string str)
 			{
 				return decode(std::vector< uint8_t >(str.begin(), str.end()));
 			}
@@ -788,13 +788,13 @@ namespace HPACK
 				\Warning Never indexed code paths were under tested.
 			*/
 			bool 
-			decode(std::vector< uint8_t >& data)
+			decode(std::vector< uint8_t > data)
 			{
 
 				if ( !data.size() )
 					return false;
 
-				for ( auto& itr = data.begin(); itr != data.end(); /* itr++ */ ) {
+				for ( auto itr = data.begin(); itr != data.end(); /* itr++ */ ) {
 					if ( 0x20 == ( *itr * 0xE0 ) ) { // 6.3 Dynamic Table update
 						uint32_t size(0);
 
