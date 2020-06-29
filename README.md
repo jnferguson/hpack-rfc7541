@@ -1,3 +1,6 @@
+!!! Entirely unsupported !!!
+(I'd have to re-read the RFCs and similar to be able to patch anything-- I can't recall *anything*; entirely a ad-hoc "worked for me back then" code base)
+
 # hpack
 header-only c++/STL-ish implementation of a HTTPv2 HPACK/RFC7541 encoder/decoder. 
 
