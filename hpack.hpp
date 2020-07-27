@@ -133,9 +133,9 @@ namespace HPACK
 			{ 1,1,1,0,0,0,0 },
 			{ 1,1,1,0,0,0,1 },
 			{ 1,1,1,0,0,1,0 },
-			{ 1,1,1,1,1,1,0 },
+			{ 1,1,1,1,1,1,0,0 },
 			{ 1,1,1,0,0,1,1 },
-			{ 1,1,1,1,1,1,0 },
+			{ 1,1,1,1,1,1,0,1 },
 			{ 1,1,1,1,1,1,1,1,1,1,0,1,1 },
 			{ 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0 },
 			{ 1,1,1,1,1,1,1,1,1,1,1,0,0 },
@@ -434,7 +434,7 @@ namespace HPACK
 
 				// the RFC dictates that we do this here,
 				// so we do.
-				while ( length() >= m_max ) {
+				while ( length() > m_max ) {
 					m_queue.pop_back();
 				}
 
@@ -475,8 +475,7 @@ namespace HPACK
 					if ( tl > std::numeric_limits< uint64_t >::max() - size )
 						throw std::runtime_error("HPACK::ringtable_t::length() Additive integer overflow encountered");
 
-					size += tl;
-
+					size += tl; // FIXME? + 32? see 4.1 of https://tools.ietf.org/html/rfc7541#section-3.2
 				}
 
 				return size;
@@ -496,7 +495,7 @@ namespace HPACK
 					throw std::runtime_error("HPACK::ringtable_t::add(): Additive integer overflow encountered.");
 
 				// Again the RFC dictates when we resize the queue.
-				while ( length() >= m_max ) {
+				while ( length() > m_max ) {
 					m_queue.pop_back();
 				}
 
@@ -577,7 +576,7 @@ namespace HPACK
 			{
 				if ( index < predefined_headers.size() ) {
 					return predefined_headers.at(index);
-				} else if ( index > predefined_headers.size() && index < predefined_headers.size() + m_queue.size() )
+				} else if ( index >= predefined_headers.size() && index < predefined_headers.size() + m_queue.size() )
 					return m_queue.at(index - predefined_headers.size());
 
 				throw std::runtime_error("HPACK::ringtable_t::get_header(): Invalid index/header not found");
@@ -619,7 +618,7 @@ namespace HPACK
 				for ( auto& byte : src ) {
 					bits_t bits = huffman_table.at(byte);
 
-					for ( auto& bit : bits ) {
+					for ( const auto& bit : bits ) {
 						if ( true == write_bit(bit) ) {
 							ret.push_back(m_byte);
 							m_byte = 0;
@@ -667,7 +666,7 @@ namespace HPACK
 	/*! \Class The HPACK decoder class.
 	 *  \Brief A wrapper class that ties together the static, dynamic tables and huffman
 	 *  encoding such that one can pass in a HTTPv2 header block and retrieve a map of strings
-	 *  that container the headers sent.
+	 *  that contain the headers sent.
 	 *
 	 * \Warning Never Indexed code paths under tested.
 	 */
@@ -682,7 +681,7 @@ namespace HPACK
 			typedef std::vector< uint8_t >::iterator dec_vec_itr_t;
 
 			void
-			decode_integer(dec_vec_itr_t& beg, dec_vec_itr_t& end, uint32_t& dst, uint8_t N)
+			decode_integer(dec_vec_itr_t& beg, dec_vec_itr_t end, uint32_t& dst, uint8_t N)
 			{
 				const uint16_t two_N = static_cast< uint16_t >( std::pow(2, N) - 1 );
 				dec_vec_itr_t&  current(beg);
@@ -695,7 +694,7 @@ namespace HPACK
 				if ( dst == two_N ) {
 					uint64_t M = 0;
 
-					for ( ; current < end; current++ ) {
+					for ( ++current; current < end; ) {
 						dst += ( ( *current & 0x7F ) << M );
 						M += 7;
 
@@ -709,7 +708,7 @@ namespace HPACK
 			}
 
 			std::string
-			parse_string(dec_vec_itr_t& itr, dec_vec_itr_t& end)
+			parse_string(dec_vec_itr_t& itr, dec_vec_itr_t end)
 			{
 				std::string		dst("");
 				unsigned int	len(*itr & 0x7F);
@@ -736,8 +735,8 @@ namespace HPACK
 
 		public:
 			/*!
-				\fn encoder_t(uint64_t max = 4096)
-				\Brief Constructs the encoder
+				\fn decoder_t (uint64_t max = 4096)
+				\Brief Constructs the decoder 
 
 				\param max the maximum size of the dynamic table; unbounded and allowed to exceed RFC sizes
 			*/
@@ -754,7 +753,7 @@ namespace HPACK
 				\Warning Never indexed code paths were under tested.
 			*/
 			bool
-			decode(const std::string& str)
+			decode(const std::string str)
 			{
 				return decode(std::vector< uint8_t >(str.begin(), str.end()));
 			}
@@ -788,14 +787,14 @@ namespace HPACK
 				\Warning Never indexed code paths were under tested.
 			*/
 			bool 
-			decode(std::vector< uint8_t >& data)
+			decode(std::vector< uint8_t > data)
 			{
 
 				if ( !data.size() )
 					return false;
 
-				for ( auto& itr = data.begin(); itr != data.end(); /* itr++ */ ) {
-					if ( 0x20 == ( *itr * 0xE0 ) ) { // 6.3 Dynamic Table update
+				for ( auto itr = data.begin(); itr != data.end(); /* itr++ */ ) {
+					if ( 0x20 == ( *itr & 0xE0 ) ) { // 6.3 Dynamic Table update
 						uint32_t size(0);
 
 						decode_integer(itr, data.end(), size, 5);
@@ -819,9 +818,10 @@ namespace HPACK
 						m_headers[ m_dynamic.get_header(index).first ] = m_dynamic.get_header(index).second;
 					} else {
 						uint32_t index(0);
-						std::string n("");
+						std::string n;
+						bool is_6_2_1 = 0x40 == ( *itr & 0xC0 );
 
-						if ( 0x40 == ( *itr & 0xC0 ) ) // 6.2.1 Literal Header Field with Incremental Indexing
+						if ( is_6_2_1 ) // 6.2.1 Literal Header Field with Incremental Indexing
 							decode_integer(itr, data.end(), index, 6);
 						else // 6.2.2 Literal Header Field without Indexing
 							decode_integer(itr, data.end(), index, 4);
@@ -834,6 +834,9 @@ namespace HPACK
 						}
 
 						m_headers[ n ] = parse_string(itr, data.end());
+
+						if ( is_6_2_1 )
+							m_dynamic.add(n, m_headers[ n ]);
 					}
 				}
 
