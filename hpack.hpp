@@ -337,10 +337,8 @@ namespace HPACK
 				if ( nullptr != n->left() )
 					delete_node(n->left());
 
-				if ( nullptr == n->left() && nullptr == n->right() ) {
-					delete n;
-					n = nullptr;
-				}
+				// just delete
+				delete n;
 
 				return;
 			}
