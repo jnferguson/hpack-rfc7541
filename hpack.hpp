@@ -432,7 +432,7 @@ namespace HPACK
 
 				// the RFC dictates that we do this here,
 				// so we do.
-				while ( length() >= m_max ) {
+				while ( length() > m_max ) {
 					m_queue.pop_back();
 				}
 
@@ -793,7 +793,7 @@ namespace HPACK
 					return false;
 
 				for ( decltype(auto) itr = data.begin(); itr != data.end(); /* itr++ */ ) {
-					if ( 0x20 == ( *itr * 0xE0 ) ) { // 6.3 Dynamic Table update
+					if ( 0x20 == ( *itr & 0xE0 ) ) { // 6.3 Dynamic Table update
 						uint32_t size(0);
 
 						decode_integer(itr, data.end(), size, 5);
