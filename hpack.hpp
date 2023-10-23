@@ -693,7 +693,7 @@ namespace HPACK
 				if ( dst == two_N ) {
 					uint64_t M = 0;
 
-					for ( ; current < end; current++ ) {
+					for (current++; current < end; current++ ) {
 						dst += ( ( *current & 0x7F ) << M );
 						M += 7;
 
@@ -709,22 +709,18 @@ namespace HPACK
 			std::string
 			parse_string(dec_vec_itr_t& itr, const dec_vec_itr_t& end)
 			{
-				std::string		dst("");
-				unsigned int	len(*itr & 0x7F);
+				std::string		dst;
 				bool			huff(( *itr & 0x80 ) == 0x80 ? true : false);
-				dec_vec_itr_t	cur(itr);
 
-				if ( itr == end )
-					throw std::invalid_argument("HPACK::decoder_t::parse_string(): Attempted to parse string when already at end of input");
+				unsigned int	len = 0;
+				decode_integer(itr, end, len, 7);
 
-				for ( ++cur; cur != end; cur++ ) {
-					dst += *cur;
+				if (std::distance(itr, end) < len)
+					throw std::invalid_argument("HPACK::decoder_t::parse_string(): string length exceeds length of input");
 
-					if ( cur - itr == len )
-						break;
-				}
+				std::copy(itr, itr + len, std::back_inserter(dst));
 
-				itr += len + 1;
+				itr += len;
 
 				if ( true == huff )
 					dst = m_huffman.decode(dst);
