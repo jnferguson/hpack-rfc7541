@@ -133,9 +133,9 @@ namespace HPACK
 			{ 1,1,1,0,0,0,0 },
 			{ 1,1,1,0,0,0,1 },
 			{ 1,1,1,0,0,1,0 },
-			{ 1,1,1,1,1,1,0 },
+			{ 1,1,1,1,1,1,0,0 },
 			{ 1,1,1,0,0,1,1 },
-			{ 1,1,1,1,1,1,0 },
+			{ 1,1,1,1,1,1,0,1 },
 			{ 1,1,1,1,1,1,1,1,1,1,0,1,1 },
 			{ 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0 },
 			{ 1,1,1,1,1,1,1,1,1,1,1,0,0 },
@@ -337,10 +337,8 @@ namespace HPACK
 				if ( nullptr != n->left() )
 					delete_node(n->left());
 
-				if ( nullptr == n->left() && nullptr == n->right() ) {
-					delete n;
-					n = nullptr;
-				}
+				// just delete
+				delete n;
 
 				return;
 			}
@@ -434,7 +432,7 @@ namespace HPACK
 
 				// the RFC dictates that we do this here,
 				// so we do.
-				while ( length() >= m_max ) {
+				while ( length() > m_max ) {
 					m_queue.pop_back();
 				}
 
@@ -619,7 +617,7 @@ namespace HPACK
 				for ( auto& byte : src ) {
 					bits_t bits = huffman_table.at(byte);
 
-					for ( auto& bit : bits ) {
+					for ( decltype(auto) bit : bits ) {
 						if ( true == write_bit(bit) ) {
 							ret.push_back(m_byte);
 							m_byte = 0;
@@ -682,7 +680,7 @@ namespace HPACK
 			typedef std::vector< uint8_t >::iterator dec_vec_itr_t;
 
 			void
-			decode_integer(dec_vec_itr_t& beg, dec_vec_itr_t& end, uint32_t& dst, uint8_t N)
+			decode_integer(dec_vec_itr_t& beg, const dec_vec_itr_t& end, uint32_t& dst, uint8_t N)
 			{
 				const uint16_t two_N = static_cast< uint16_t >( std::pow(2, N) - 1 );
 				dec_vec_itr_t&  current(beg);
@@ -695,7 +693,7 @@ namespace HPACK
 				if ( dst == two_N ) {
 					uint64_t M = 0;
 
-					for ( ; current < end; current++ ) {
+					for (current++; current < end; current++ ) {
 						dst += ( ( *current & 0x7F ) << M );
 						M += 7;
 
@@ -709,24 +707,20 @@ namespace HPACK
 			}
 
 			std::string
-			parse_string(dec_vec_itr_t& itr, dec_vec_itr_t& end)
+			parse_string(dec_vec_itr_t& itr, const dec_vec_itr_t& end)
 			{
-				std::string		dst("");
-				unsigned int	len(*itr & 0x7F);
+				std::string		dst;
 				bool			huff(( *itr & 0x80 ) == 0x80 ? true : false);
-				dec_vec_itr_t	cur(itr);
 
-				if ( itr == end )
-					throw std::invalid_argument("HPACK::decoder_t::parse_string(): Attempted to parse string when already at end of input");
+				unsigned int	len = 0;
+				decode_integer(itr, end, len, 7);
 
-				for ( ++cur; cur != end; cur++ ) {
-					dst += *cur;
+				if (std::distance(itr, end) < len)
+					throw std::invalid_argument("HPACK::decoder_t::parse_string(): string length exceeds length of input");
 
-					if ( cur - itr == len )
-						break;
-				}
+				std::copy(itr, itr + len, std::back_inserter(dst));
 
-				itr += len + 1;
+				itr += len;
 
 				if ( true == huff )
 					dst = m_huffman.decode(dst);
@@ -788,14 +782,14 @@ namespace HPACK
 				\Warning Never indexed code paths were under tested.
 			*/
 			bool 
-			decode(std::vector< uint8_t >& data)
+			decode(std::vector< uint8_t > data)
 			{
 
 				if ( !data.size() )
 					return false;
 
-				for ( auto& itr = data.begin(); itr != data.end(); /* itr++ */ ) {
-					if ( 0x20 == ( *itr * 0xE0 ) ) { // 6.3 Dynamic Table update
+				for ( decltype(auto) itr = data.begin(); itr != data.end(); /* itr++ */ ) {
+					if ( 0x20 == ( *itr & 0xE0 ) ) { // 6.3 Dynamic Table update
 						uint32_t size(0);
 
 						decode_integer(itr, data.end(), size, 5);
@@ -833,7 +827,26 @@ namespace HPACK
 							n = parse_string(itr, data.end());
 						}
 
-						m_headers[ n ] = parse_string(itr, data.end());
+						auto value = parse_string(itr, data.end());
+						auto existing = m_headers.find(n);
+						if (existing != m_headers.end())
+						{
+							// Note: In practice, the "Set-Cookie" header field([COOKIE]) often appears in a response message across multiple field lines and does not use the list syntax, violating the above requirements on multiple field lines with the same field name.Since it cannot be combined into a single field value, recipients ought to handle "Set-Cookie" as a special case while processing fields. (See Appendix A.2.3 of[Kri2001] for details.)
+
+							if (n == "set-cookie" || n == "www-authenticate" || n == "proxy-authenticate")
+							{
+								existing->second += "\n" + value;
+							}
+							else
+							{
+								existing->second = value;
+								// either maybe fail the whole thing
+							}
+						}
+						else
+						{
+							m_headers[n] = value;
+						}
 					}
 				}
 
